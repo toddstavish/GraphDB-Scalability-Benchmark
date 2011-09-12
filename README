@@ -8,7 +8,7 @@ Practical Matters:
 The code is presently contained in a private repository on GitHub. Since, you are reading this, I'm assuming you are aware of this key fact. The build environment is Maven based to help deal with most but not all of the dependencies. Neo4j \ Gremlin developers generally have some familiarity with Maven. Local path dependencies where unavoidable, please alter your respective pom.xml for your InfiniteGraph installation and local 'lib' folder.
 
 ToDo:
-1. Figure out how to simulate Neo4j longid mapping to objy OID 
+1. Figure out how to simulate Neo4j longid mapping to objy OID and static root node retrieval method
 2. Timing code on the ingest, similar to query timing code (presently using Maven statistics for ingest timing)
 3. InfinteGraph parallel pipeline ingest implementation (problem: nodes and edges are created at the same time now)
 4. InfiniteGraph query code port
