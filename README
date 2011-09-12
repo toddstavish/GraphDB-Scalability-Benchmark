@@ -1,0 +1,19 @@
+Overview:
+The GraphDB-Benchmark project was created to compare the performance and scalability of graph databases. Presently, it includes implementations for two graph stores (Neo4j and InfiniteGraph). The dimensions of the graph space are configured via a java properties file. Therefore, the total number of nodes / vertexes and relationships / edges are assigned at run time. Dynamically assigning the graph space characteristics allows for testing of different graph permutations without recompilation. The goal is to test the ingest and query implications of supporting very large graphs, as well as graph characteristics like super saturated nodes (nodes with >> number of inbound / outbound edges, aka SNA influencers). 
+
+Graph Model:
+The graph model is a social network where, hold your breath, people KNOW other people. Each person has a unique name string that is created from CENSUS names list. People know other people on topics. Topics are created from a large, random list of nouns requested from the WordNet project web services API. The topic one person knows another person over is a weighted attribute. The purpose of of the weighted know's topic is to simulate twitter DM's, email messages, commenting on facebook, blogs, etc. The weighted knows represents when one person messages another over a topic (the weight represents the frequency of messaging on that topic). People are also associated to groups. Groups are created from a 1000 element list of the most popular internet domains. In addition, topics are associated to their original documents, and in turn, documents are associated to people via 'authors' and 'views' edges. The graph model can be seen visually with the included GraphModel.pdf. 
+
+Practical Matters:
+The code is presently contained in a private repository on GitHub. Since, you are reading this, I'm assuming you are aware of this key fact. The build environment is Maven based to help deal with most but not all of the dependencies. Neo4j \ Gremlin developers generally have some familiarity with Maven. Local path dependencies where unavoidable, please alter your respective pom.xml for your InfiniteGraph installation and local 'lib' folder.
+
+ToDo:
+1. Figure out how to simulate Neo4j longid mapping to objy OID 
+2. Timing code on the ingest, similar to query timing code (presently using Maven statistics for ingest timing)
+3. InfinteGraph parallel pipeline ingest implementation (problem: nodes and edges are created at the same time now)
+4. InfiniteGraph query code port
+5. Neo4j testing for embedded versus BatchInserter versus stand alone versus HA
+6. Fat node testing (large number of node properties / attributes, rich edge / non-property graph testing)
+7. InfiniteGraph query timing over a sharded graph
+8. SNA code (presently contains code using Neo4j algos, which were pretty outdated and bad, InfiniteGraph does not have native algos, seems like the best idea would be to implement a compatible version for both graph stores)?
+9. Tinkerpop stack timings (Gremlin, SAIL, etc)?

@@ -1,0 +1,29 @@
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/svn/neo4Jprototype/!svn/ver/115/backend/src/main/resources/data/synthetic
+END
+topics.txt
+K 25
+svn:wc:ra_dav:version-url
+V 85
+/svn/neo4Jprototype/!svn/ver/111/backend/src/main/resources/data/synthetic/topics.txt
+END
+names.txt
+K 25
+svn:wc:ra_dav:version-url
+V 84
+/svn/neo4Jprototype/!svn/ver/111/backend/src/main/resources/data/synthetic/names.txt
+END
+groups.txt
+K 25
+svn:wc:ra_dav:version-url
+V 85
+/svn/neo4Jprototype/!svn/ver/111/backend/src/main/resources/data/synthetic/groups.txt
+END
+people.csv
+K 25
+svn:wc:ra_dav:version-url
+V 85
+/svn/neo4Jprototype/!svn/ver/115/backend/src/main/resources/data/synthetic/people.csv
+END
