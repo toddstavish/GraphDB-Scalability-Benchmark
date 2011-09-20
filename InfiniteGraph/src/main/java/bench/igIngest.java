@@ -131,17 +131,22 @@ public class igIngest
 
     		// Open graph database
     		logger.info("> Opening graph database ...");
-    		helloGraphDB = GraphFactory.open(graphDbName, propertiesFileName);
+    		graphDB = GraphFactory.open(graphDbName, propertiesFileName);
 
     		// Begin transaction
     		logger.info("> Starting a read/write transaction ...");
     		tx = graphDB.beginTransaction(AccessMode.READ_WRITE);
-
+            
+            // Create root node
+            BaseVertex root = new BaseVertex();
+            graphDB.addVertex(root);
+            graphDB.nameVertex("root", root);
+			
     		// Create graph
-            createTopicNodes();
-            createGroupNodes();
-            createPeopleNodes();
-            createDocumentNodes();
+            createTopicNodes(graphdb);
+            //createGroupNodes();
+            //createPeopleNodes();
+            //createDocumentNodes();
         
     		// Commit to save your changes to the graph database
     		logger.info("> Committing changes ...");
@@ -172,20 +177,14 @@ public class igIngest
 	 * Method to create topic nodes in the graph database
 	 */
 
-	private static void createTopicNodes() throws IOException
+	private static void createTopicNodes(GraphDatabase graphDB) throws IOException
     {
 		String topic;
-		long topicNodeId, topicNodesId, referenceNodeId = 0;
-		
-		//BatchInserter neo = new BatchInserterImpl(PROPERTIES.getProperty("GRAPHDB_PATH"), BatchInserterImpl.loadProperties("configuration.properties"));
-		
-		Map<String,Object> properties = new HashMap<String,Object>();
-		properties.put("type", "topics");
-		
-		topicNodesId = neo.createNode(properties);
-		
-		neo.createRelationship(referenceNodeId, topicNodesId, Neo4jRelationshipTypes.TOPICS, null);
-		
+		BaseVertex root = graphDB.getNamedVertex("root");
+		BaseVertex topicsNode = new BaseVertex();
+		graphDB.addVertex(topicsNode);
+		BaseEdge topicsEdge = new BaseEdge();
+		root.addEdge(topicsEdge, topicsNode, EdgeKind.BIDIRECTIONAL);				
 		ArrayList<String> topics = CsvDataGenerator.load(PROPERTIES.getProperty("TOPICS_PATH"), Integer.decode(PROPERTIES.getProperty("NUMBER_OF_TOPICS")));
 		Iterator<String> topicsItr = topics.iterator();
 		TOPICMAP = new HashMap<String,Long>();
@@ -193,13 +192,14 @@ public class igIngest
 		while (topicsItr.hasNext())
 		{
 			topic = topicsItr.next();
-			properties = new HashMap<String,Object>();
-			properties.put("topic", topic);
+			Topic topicNode = new Topic(topic);
+		    graphDB.addVertex(topicNode);
 			topicNodeId = neo.createNode(properties);
-			TOPICMAP.put(topic, new Long(topicNodeId));
+			TOPICMAP.put(topic, new Long(topicsNode.getOid()));
+			BaseEdge topicEdge = new BaseEdge();
+			topicNodes.addEdge(topicEdge, topicNode, EdgeKind.BIDIRECTIONAL);		
 			neo.createRelationship(topicNodesId, topicNodeId, Neo4jRelationshipTypes.TOPIC, null);
 	    }
-		neo.shutdown();
 	}
 
 	/**
@@ -357,7 +357,7 @@ public class igIngest
      * @return a HashMap of strings to nodeIds
 	 */
 
-	private static HashMap<String,Long> getMap(String type, GraphDatabaseService neo)
+	private static HashMap<String,Long> getMap(String type, GraphDatabase graphDB)
 	{
 		long referenceNodeId = 0;
 		HashMap<String,Long> map = new HashMap<String,Long>();
