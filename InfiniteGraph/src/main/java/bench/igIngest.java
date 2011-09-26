@@ -1,7 +1,14 @@
 package bench;
 
-// Import all InfiniteGraph packages
-import com.infinitegraph.*;
+import com.objy.db.app.ooId;
+
+import com.infinitegraph.EdgeKind;
+import com.infinitegraph.AccessMode;
+import com.infinitegraph.Transaction;
+import com.infinitegraph.GraphFactory;
+import com.infinitegraph.GraphDatabase;
+import com.infinitegraph.StorageException;
+import com.infinitegraph.ConfigurationException;
 
 import java.util.Map;
 import java.util.Set;
@@ -18,9 +25,6 @@ import java.util.Properties;
 
 import java.io.FileReader;
 import java.io.IOException;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import au.com.bytecode.opencsv.CSVReader;
 
@@ -42,32 +46,32 @@ public class igIngest
 
 
     /**
-     * Holds configuration properties on Neo4J, nodes and edge numbers, paths to CSV,
+     * Holds configuration properties on InfiniteGraph, nodes and edge numbers, paths to CSV,
      * and graph.
 	 */
 
 	private static Properties PROPERTIES;
 
 	/**
- 	* Runtime map, resolves topic strings to nodeIds
+ 	* Runtime map, resolves topic strings to ooIds
  	*/
 
-	private static HashMap<String,Long> TOPICMAP;
+	private static HashMap<String,ooId> TOPICMAP;
 
 	/**
-	* Runtime maps, resolves group strings to nodeIds
+	* Runtime maps, resolves group strings to ooIds
 	*/
 
-	private static HashMap<String,Long> GROUPMAP;
+	private static HashMap<String,ooId> GROUPMAP;
 
 	/**
- 	* Runtime maps, resolves person strings to nodeIds
+ 	* Runtime maps, resolves person strings ooIds
  	*/
 
-	private static HashMap<String,Long> PERSONMAP;
+	private static HashMap<String,ooId> PERSONMAP;
 
 	/**
- 	* Main method is used to load the Neo4J Graph database.
+ 	* Main method is used to load the InfiniteGraph database.
  	*/
 
 	public static void main(String[] args) throws IOException, ClassNotFoundException
@@ -100,9 +104,6 @@ public class igIngest
 
 	private static void loadDataToGraph() throws IOException
     {
-
-    	// Set up logging for the HelloGraph class
-    	Logger logger = LoggerFactory.getLogger(WebGroupSampleCreate.class);
     	
         // Create null transaction, null graph database instance
         Transaction tx = null;
@@ -121,41 +122,41 @@ public class igIngest
         	}
         	catch (StorageException sE)
         	{
-        		logger.info(sE.getMessage());
+        		System.out.println(sE.getMessage());
         	}
 
         	// HINT: Add code to create graph database and its contents
         	// Create graph database
-    		logger.info("> Creating graph database ...");
+    		System.out.println("> Creating graph database ...");
     		GraphFactory.create(graphDbName, propertiesFileName);
 
     		// Open graph database
-    		logger.info("> Opening graph database ...");
+    		System.out.println("> Opening graph database ...");
     		graphDB = GraphFactory.open(graphDbName, propertiesFileName);
 
     		// Begin transaction
-    		logger.info("> Starting a read/write transaction ...");
+    		System.out.println("> Starting a read/write transaction ...");
     		tx = graphDB.beginTransaction(AccessMode.READ_WRITE);
             
             // Create root node
-            BaseVertex root = new BaseVertex();
+            Root root = new Root();
             graphDB.addVertex(root);
             graphDB.nameVertex("root", root);
 			
     		// Create graph
-            createTopicNodes(graphdb);
-            //createGroupNodes();
-            //createPeopleNodes();
-            //createDocumentNodes();
+            createTopicNodes(graphDB);
+            createGroupNodes(graphDB);
+            createPeopleNodes(graphDB);
+            createDocumentNodes(graphDB);
         
     		// Commit to save your changes to the graph database
-    		logger.info("> Committing changes ...");
+    		System.out.println("> Committing changes ...");
     		tx.commit();
         }
         catch (ConfigurationException cE)
         {
-            logger.warn("> Configuration Exception was thrown ... ");
-            logger.error(cE.getMessage());
+            System.out.println("> Configuration Exception was thrown ... ");
+            System.out.println(cE.getMessage());
         }
 
         finally
@@ -167,7 +168,7 @@ public class igIngest
             if (graphDB != null)
             {
                 graphDB.close();
-                logger.info("> On Exit: Closed graph database");
+                System.out.println("> On Exit: Closed graph database");
             }
         }  
     }
@@ -180,25 +181,22 @@ public class igIngest
 	private static void createTopicNodes(GraphDatabase graphDB) throws IOException
     {
 		String topic;
-		BaseVertex root = graphDB.getNamedVertex("root");
-		BaseVertex topicsNode = new BaseVertex();
+		Root root = (Root)graphDB.getNamedVertex("root");
+		Topics topicsNode = new Topics();
 		graphDB.addVertex(topicsNode);
-		BaseEdge topicsEdge = new BaseEdge();
+		TopicsEdge topicsEdge = new TopicsEdge();
 		root.addEdge(topicsEdge, topicsNode, EdgeKind.BIDIRECTIONAL);				
 		ArrayList<String> topics = CsvDataGenerator.load(PROPERTIES.getProperty("TOPICS_PATH"), Integer.decode(PROPERTIES.getProperty("NUMBER_OF_TOPICS")));
 		Iterator<String> topicsItr = topics.iterator();
-		TOPICMAP = new HashMap<String,Long>();
-		
+		TOPICMAP = new HashMap<String,ooId>();
 		while (topicsItr.hasNext())
 		{
 			topic = topicsItr.next();
 			Topic topicNode = new Topic(topic);
 		    graphDB.addVertex(topicNode);
-			topicNodeId = neo.createNode(properties);
-			TOPICMAP.put(topic, new Long(topicsNode.getOid()));
-			BaseEdge topicEdge = new BaseEdge();
-			topicNodes.addEdge(topicEdge, topicNode, EdgeKind.BIDIRECTIONAL);		
-			neo.createRelationship(topicNodesId, topicNodeId, Neo4jRelationshipTypes.TOPIC, null);
+			TOPICMAP.put(topic, topicNode.getOid());
+			TopicEdge topicEdge = new TopicEdge();
+			topicsNode.addEdge(topicEdge, topicNode, EdgeKind.BIDIRECTIONAL);		
 	    }
 	}
 
@@ -206,60 +204,59 @@ public class igIngest
 	 * Method to create group nodes in the graph database
 	 */
 
-	private static void createGroupNodes() throws IOException
+	private static void createGroupNodes(GraphDatabase graphDB) throws IOException
     {
 		String group;
-		long groupNodeId, groupNodesId, referenceNodeId = 0;
-		BatchInserter neo = new BatchInserterImpl(PROPERTIES.getProperty("GRAPHDB_PATH"), BatchInserterImpl.loadProperties("configuration.properties"));
-		Map<String,Object> properties = new HashMap<String,Object>();
-		properties.put("type", "groups");
-		groupNodesId = neo.createNode(properties);
-		neo.createRelationship(referenceNodeId, groupNodesId, Neo4jRelationshipTypes.GROUPS, null);
+		Root root = (Root)graphDB.getNamedVertex("root");
+		Groups groupsNode = new Groups();
+		graphDB.addVertex(groupsNode);
+		GroupsEdge groupsEdge = new GroupsEdge();
+		root.addEdge(groupsEdge, groupsNode, EdgeKind.BIDIRECTIONAL);						
 		ArrayList<String> groups = CsvDataGenerator.load(PROPERTIES.getProperty("GROUPS_PATH"), Integer.decode(PROPERTIES.getProperty("NUMBER_OF_GROUPS")));
 		Iterator<String> groupsItr = groups.iterator();
-		GROUPMAP = new HashMap<String,Long>();
+		GROUPMAP = new HashMap<String,ooId>();
 		while (groupsItr.hasNext())
 		{
 			group = groupsItr.next();
-			properties = new HashMap<String,Object>();
-			properties.put("name", group);
-			groupNodeId = neo.createNode(properties);
-			GROUPMAP.put(group, new Long(groupNodeId));
-			neo.createRelationship(groupNodesId, groupNodeId, Neo4jRelationshipTypes.GROUP, null);
+			Group groupNode = new Group(group);
+			graphDB.addVertex(topicNode);
+			GROUPMAP.put(group, groupNode.getOid());
+			GroupEdge groupEdge = new GroupEdge();
+			groupsNode.addEdge(groupEdge, groupNode, EdgeKind.BIDIRECTIONAL);
 	    }
-		neo.shutdown();
 	}
 
 	/**
 	 * Method to create person nodes in the graph database
 	 */
 
-	private static void createPeopleNodes() throws IOException
+	private static void createPeopleNodes(GraphDatabase graphDB) throws IOException
     {
 		// Create people nodes and attach them to root, put them into two groups randomly
 	  	String name, group;
 		Random random = new Random();
-		long personNodeId, personNodesId, groupNodeId, referenceNodeId = 0;
-		BatchInserter neo = new BatchInserterImpl(PROPERTIES.getProperty("GRAPHDB_PATH"), BatchInserterImpl.loadProperties("configuration.properties"));
-		Map<String,Object> properties = new HashMap<String,Object>();
-		properties.put("type", "people");
-		personNodesId = neo.createNode(properties);
-		neo.createRelationship(referenceNodeId, personNodesId, Neo4jRelationshipTypes.PEOPLE, null);
+		Root root = (Root)graphDB.getNamedVertex("root");
+		People peopleNode = new People();
+		graphDB.addVertex(peopleNode);
+		PeopleEdge peopleEdge = new PeopleEdge();
+		root.addEdge(peopleEdge, peopleNode, EdgeKind.BIDIRECTIONAL);
 		ArrayList<String> names = CsvDataGenerator.load(PROPERTIES.getProperty("NAMES_PATH"), Integer.decode(PROPERTIES.getProperty("NUMBER_OF_PEOPLE")));
 		ArrayList<String> groups = CsvDataGenerator.load(PROPERTIES.getProperty("GROUPS_PATH"), Integer.decode(PROPERTIES.getProperty("NUMBER_OF_GROUPS")));
 		ArrayList<String> topics = CsvDataGenerator.load(PROPERTIES.getProperty("TOPICS_PATH"), Integer.decode(PROPERTIES.getProperty("NUMBER_OF_TOPICS")));
 		Iterator<String> namesItr = names.iterator();
-		PERSONMAP = new HashMap<String,Long>();
+		PERSONMAP = new HashMap<String,ooId>();
 	 	while (namesItr.hasNext())
 		{
 			name = namesItr.next();
 			group = groups.get(random.nextInt(groups.size()));
 			groupNodeId = GROUPMAP.get(group);
-			properties = new HashMap<String,Object>();
-			properties.put("name", name);
-			personNodeId = neo.createNode(properties);
-			PERSONMAP.put(name, new Long(personNodeId));
-			neo.createRelationship(personNodesId, personNodeId, Neo4jRelationshipTypes.PERSON, null);
+			
+			Person personNode = new Person(name);
+			graphDB.addVertex(personNode);
+			PERSONMAP.put(name, personNode.getOid());
+			PersonEdge personEdge = new PersonEdge();
+			peopleNode.addEdge(personEdge, personNode, EdgeKind.BIDIRECTIONAL);
+						
 			neo.createRelationship(personNodeId, groupNodeId, Neo4jRelationshipTypes.IS_MEMBER_OF, null);
 			group = groups.get(random.nextInt(groups.size()));
 			groupNodeId = GROUPMAP.get(group);
@@ -357,10 +354,10 @@ public class igIngest
      * @return a HashMap of strings to nodeIds
 	 */
 
-	private static HashMap<String,Long> getMap(String type, GraphDatabase graphDB)
+	private static HashMap<String,ooId> getMap(String type, GraphDatabase graphDB)
 	{
 		long referenceNodeId = 0;
-		HashMap<String,Long> map = new HashMap<String,Long>();
+		HashMap<String,Long> map = new HashMap<String,ooId>();
 		Node referenceNode = neo.getNodeById(referenceNodeId);
 		if (type.equals("topic"))
 		{
