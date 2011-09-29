@@ -5,12 +5,10 @@ import com.infinitegraph.BaseEdge;
 class Knows extends BaseEdge
 {
     private String topic;
-    private int weight;
 
-    public Knows(String topic, int weight)
+    public Knows(String topic)
     {
         setTopic(topic);
-        setWeight(weight);
     }
 
     public void setTopic(String topic)
@@ -25,15 +23,4 @@ class Knows extends BaseEdge
         return this.topic;
     }
 
-    public void setWeight(int weight)
-    {
-        markModified();
-        this.weight = weight;
-    }
-
-    public int getWeight()
-    {
-        fetch();
-        return this.weight;
-    }
 }

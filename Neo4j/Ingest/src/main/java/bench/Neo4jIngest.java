@@ -229,7 +229,6 @@ public class Neo4jIngest
 					properties = new HashMap<String,Object>();
 					properties.put("topic", new String(row[column+Integer.decode(PROPERTIES.getProperty("NUMBER_OF_PEOPLE_PER_PERSON"))]));
 					properties.put("weight", random.nextInt(10)); // Weights randomly assigned between 1-10
-					properties.put("cost", random.nextDouble()); // Cost randomly assigned between 0-1.0					
 					neo.createRelationship(personNodeId, friendNodeId, Neo4jRelationshipTypes.KNOWS, properties);
 					column++;
 				}
@@ -238,7 +237,6 @@ public class Neo4jIngest
 					topicNodeId = TOPICMAP.get(row[column]);
 					properties = new HashMap<String,Object>();
 					properties.put("weight", random.nextInt(10));  // Weights randomly assigned between 1-10
-					properties.put("cost", random.nextDouble()); // Cost randomly assigned between 0-1.0
 					neo.createRelationship(personNodeId, topicNodeId, Neo4jRelationshipTypes.ASSOCIATED_TO, properties);
 					topicWeight++;
 					column++;

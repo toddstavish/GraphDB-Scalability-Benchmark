@@ -1,15 +1,5 @@
 package bench;
 
-import com.objy.db.app.ooId;
-
-import com.infinitegraph.EdgeKind;
-import com.infinitegraph.AccessMode;
-import com.infinitegraph.Transaction;
-import com.infinitegraph.GraphFactory;
-import com.infinitegraph.GraphDatabase;
-import com.infinitegraph.StorageException;
-import com.infinitegraph.ConfigurationException;
-
 import java.util.Map;
 import java.util.Set;
 import java.util.List;
@@ -25,6 +15,17 @@ import java.util.Properties;
 
 import java.io.FileReader;
 import java.io.IOException;
+
+import com.infinitegraph.EdgeKind;
+import com.infinitegraph.AccessMode;
+import com.infinitegraph.Transaction;
+import com.infinitegraph.GraphFactory;
+import com.infinitegraph.VertexHandle;
+import com.infinitegraph.GraphDatabase;
+import com.infinitegraph.StorageException;
+import com.infinitegraph.ConfigurationException;
+import com.infinitegraph.navigation.Qualifier;
+import com.infinitegraph.navigation.qualifiers.VertexTypes;
 
 import au.com.bytecode.opencsv.CSVReader;
 
@@ -56,19 +57,19 @@ public class igIngest
  	* Runtime map, resolves topic strings to ooIds
  	*/
 
-	private static HashMap<String,ooId> TOPICMAP;
+	private static HashMap<String,Long> TOPICMAP;
 
 	/**
 	* Runtime maps, resolves group strings to ooIds
 	*/
 
-	private static HashMap<String,ooId> GROUPMAP;
+	private static HashMap<String,Long> GROUPMAP;
 
 	/**
  	* Runtime maps, resolves person strings ooIds
  	*/
 
-	private static HashMap<String,ooId> PERSONMAP;
+	private static HashMap<String,Long> PERSONMAP;
 
 	/**
  	* Main method is used to load the InfiniteGraph database.
@@ -188,13 +189,13 @@ public class igIngest
 		root.addEdge(topicsEdge, topicsNode, EdgeKind.BIDIRECTIONAL);				
 		ArrayList<String> topics = CsvDataGenerator.load(PROPERTIES.getProperty("TOPICS_PATH"), Integer.decode(PROPERTIES.getProperty("NUMBER_OF_TOPICS")));
 		Iterator<String> topicsItr = topics.iterator();
-		TOPICMAP = new HashMap<String,ooId>();
+		TOPICMAP = new HashMap<String,Long>();
 		while (topicsItr.hasNext())
 		{
 			topic = topicsItr.next();
 			Topic topicNode = new Topic(topic);
-		    graphDB.addVertex(topicNode);
-			TOPICMAP.put(topic, topicNode.getOid());
+		    Long topicId = graphDB.addVertex(topicNode);
+			TOPICMAP.put(topic, topicId);
 			TopicEdge topicEdge = new TopicEdge();
 			topicsNode.addEdge(topicEdge, topicNode, EdgeKind.BIDIRECTIONAL);		
 	    }
@@ -214,13 +215,13 @@ public class igIngest
 		root.addEdge(groupsEdge, groupsNode, EdgeKind.BIDIRECTIONAL);						
 		ArrayList<String> groups = CsvDataGenerator.load(PROPERTIES.getProperty("GROUPS_PATH"), Integer.decode(PROPERTIES.getProperty("NUMBER_OF_GROUPS")));
 		Iterator<String> groupsItr = groups.iterator();
-		GROUPMAP = new HashMap<String,ooId>();
+		GROUPMAP = new HashMap<String,Long>();
 		while (groupsItr.hasNext())
 		{
 			group = groupsItr.next();
 			Group groupNode = new Group(group);
-			graphDB.addVertex(topicNode);
-			GROUPMAP.put(group, groupNode.getOid());
+			Long groupId = graphDB.addVertex(groupNode);
+			GROUPMAP.put(group, groupId);
 			GroupEdge groupEdge = new GroupEdge();
 			groupsNode.addEdge(groupEdge, groupNode, EdgeKind.BIDIRECTIONAL);
 	    }
@@ -244,23 +245,19 @@ public class igIngest
 		ArrayList<String> groups = CsvDataGenerator.load(PROPERTIES.getProperty("GROUPS_PATH"), Integer.decode(PROPERTIES.getProperty("NUMBER_OF_GROUPS")));
 		ArrayList<String> topics = CsvDataGenerator.load(PROPERTIES.getProperty("TOPICS_PATH"), Integer.decode(PROPERTIES.getProperty("NUMBER_OF_TOPICS")));
 		Iterator<String> namesItr = names.iterator();
-		PERSONMAP = new HashMap<String,ooId>();
+		PERSONMAP = new HashMap<String,Long>();
 	 	while (namesItr.hasNext())
 		{
 			name = namesItr.next();
-			group = groups.get(random.nextInt(groups.size()));
-			groupNodeId = GROUPMAP.get(group);
-			
 			Person personNode = new Person(name);
-			graphDB.addVertex(personNode);
-			PERSONMAP.put(name, personNode.getOid());
+			long personNodeId = graphDB.addVertex(personNode);
+			PERSONMAP.put(name, personNodeId);
 			PersonEdge personEdge = new PersonEdge();
-			peopleNode.addEdge(personEdge, personNode, EdgeKind.BIDIRECTIONAL);
-						
-			neo.createRelationship(personNodeId, groupNodeId, Neo4jRelationshipTypes.IS_MEMBER_OF, null);
+			peopleNode.addEdge(personEdge, personNode, EdgeKind.BIDIRECTIONAL);	
 			group = groups.get(random.nextInt(groups.size()));
-			groupNodeId = GROUPMAP.get(group);
-			neo.createRelationship(personNodeId, groupNodeId, Neo4jRelationshipTypes.IS_MEMBER_OF, null);
+			long groupNodeId = GROUPMAP.get(group);
+			IsMemberOf memberOf = new IsMemberOf();
+			graphDB.addEdge(memberOf, personNodeId, groupNodeId, EdgeKind.BIDIRECTIONAL, (short)0);
 	    }
 
 		// Associate people and topics to people
@@ -269,7 +266,7 @@ public class igIngest
 		while ((row = csvReader.readNext()) != null)
 		{
 			int column = 0;
-			personNodeId = 0;
+			long personNodeId = 0;
 			int topicWeight = 1;
 			long topicNodeId = 0;
 			long friendNodeId = 0;
@@ -284,37 +281,29 @@ public class igIngest
 				else if (column <= Integer.decode(PROPERTIES.getProperty("NUMBER_OF_PEOPLE_PER_PERSON")))
 				{
 					friendNodeId = PERSONMAP.get(row[column]);
-					properties = new HashMap<String,Object>();
-					properties.put("topic", new String(row[column+Integer.decode(PROPERTIES.getProperty("NUMBER_OF_PEOPLE_PER_PERSON"))]));
-					properties.put("weight", random.nextInt(10)); // Weights randomly assigned between 1-10
-					properties.put("cost", random.nextDouble()); // Cost randomly assigned between 0-1.0					
-					neo.createRelationship(personNodeId, friendNodeId, Neo4jRelationshipTypes.KNOWS, properties);
+					Knows knows = new Knows(new String(row[column+Integer.decode(PROPERTIES.getProperty("NUMBER_OF_PEOPLE_PER_PERSON"))]));
+                    graphDB.addEdge(knows, personNodeId, friendNodeId, EdgeKind.BIDIRECTIONAL, (short)random.nextInt(10));
 					column++;
 				}
 				else
 				{
 					topicNodeId = TOPICMAP.get(row[column]);
-					properties = new HashMap<String,Object>();
-					properties.put("weight", random.nextInt(10));  // Weights randomly assigned between 1-10
-					properties.put("cost", random.nextDouble()); // Cost randomly assigned between 0-1.0
-					neo.createRelationship(personNodeId, topicNodeId, Neo4jRelationshipTypes.ASSOCIATED_TO, properties);
+					AssociatedTo assoc = new AssociatedTo();					
+					graphDB.addEdge(assoc, personNodeId, topicNodeId, EdgeKind.BIDIRECTIONAL, (short)random.nextInt(10));
 					topicWeight++;
 					column++;
 				}
           	}
         }
        	csvReader.close();
-		neo.shutdown();
 	}
 
 	/**
 	 * Method to create document nodes in the graph database
 	 */
 
-	private static void createDocumentNodes() throws IOException
+	private static void createDocumentNodes(GraphDatabase graphDB) throws IOException
     {
-		// Create graph batch database inserter
-		BatchInserter neo = new BatchInserterImpl(PROPERTIES.getProperty("GRAPHDB_PATH"), BatchInserterImpl.loadProperties("configuration.properties"));
 
 		// Create documents and relate them to authors and viewers
 		Random random = new Random();
@@ -326,56 +315,64 @@ public class igIngest
 		Iterator<String> topicsItr = topics.iterator();
 		for (int i=0; i < Integer.decode(PROPERTIES.getProperty("NUMBER_OF_DOCUMENTS")); i++)
 		{
-			properties = new HashMap<String,Object>();
-			documentNodeId = neo.createNode(properties);
+		    Document doc = new Document();
+			documentNodeId = graphDB.addVertex(doc);
 	        for (int j = 0; j < Integer.decode(PROPERTIES.getProperty("NUMBER_OF_AUTHORS")); j++)
 	        {
 				personNodeId = PERSONMAP.get(names.get(random.nextInt(names.size())));
-			    neo.createRelationship(personNodeId, documentNodeId, Neo4jRelationshipTypes.AUTHORS, null);
+				Authors auth = new Authors();					
+				graphDB.addEdge(auth, personNodeId, documentNodeId, EdgeKind.BIDIRECTIONAL, (short)random.nextInt(10));
 	        }
 	        for (int k = 0; k < Integer.decode(PROPERTIES.getProperty("NUMBER_OF_VIEWERS")); k++)
 	        {
 				personNodeId = PERSONMAP.get(names.get(random.nextInt(names.size())));
-				neo.createRelationship(personNodeId, documentNodeId, Neo4jRelationshipTypes.VIEWS, null);
+				Views views = new Views();					
+				graphDB.addEdge(views, personNodeId, documentNodeId, EdgeKind.BIDIRECTIONAL, (short)random.nextInt(10));
 	        }
 	        for (int l = 0; l < Integer.decode(PROPERTIES.getProperty("NUMBER_OF_TOPICS_PER_DOCUMENT")); l++)
 	        {
 				topicNodeId = TOPICMAP.get(topics.get(random.nextInt(topics.size())));
-				neo.createRelationship(documentNodeId, topicNodeId, Neo4jRelationshipTypes.HAS, null);
+				Has has = new Has();					
+				graphDB.addEdge(has, topicNodeId, documentNodeId, EdgeKind.BIDIRECTIONAL, (short)random.nextInt(10));
 	        }
 		}
-		neo.shutdown();
 	}
 
 	/**
      * Builds a map that holds string to nodeID connections
      * @param type the type of map to return; either person or topic
-     * @param neo active Neo4J persistence service
+     * @param GraphDabase
      * @return a HashMap of strings to nodeIds
 	 */
 
-	private static HashMap<String,ooId> getMap(String type, GraphDatabase graphDB)
+	private static HashMap<String,Long> getMap(String type, GraphDatabase graphDB)
 	{
-		long referenceNodeId = 0;
-		HashMap<String,Long> map = new HashMap<String,ooId>();
-		Node referenceNode = neo.getNodeById(referenceNodeId);
+		HashMap<String,Long> map = new HashMap<String,Long>();
+		Root referenceNode = (Root)graphDB.getNamedVertex("root");
+		
 		if (type.equals("topic"))
 		{
-			Node topicNodes = referenceNode.getSingleRelationship(Neo4jRelationshipTypes.TOPICS, Direction.OUTGOING).getEndNode();
-			for (Relationship topic : topicNodes.getRelationships(Neo4jRelationshipTypes.TOPIC, Direction.OUTGOING))
-	        {
-				Node topicNode = topic.getEndNode();
-				map.put(topicNode.getProperty("topic").toString(), topicNode.getId());
-	        }
+		    Qualifier topicsFilter = new VertexTypes(graphDB.getTypeId(Topics.class.getName()));
+            for (VertexHandle topicsNode : referenceNode.getNeighbors(topicsFilter))
+            {
+                Qualifier topicFilter = new VertexTypes(graphDB.getTypeId(Topic.class.getName()));
+                for (VertexHandle topicNode : topicsNode.getVertex().getNeighbors(topicFilter))
+                {
+                    map.put(((Topic)topicNode.getVertex()).getTopic(), topicNode.getVertex().getId());
+                }
+		    }
 		}
 		else if (type.equals("person"))
 		{
-			Node personNodes = referenceNode.getSingleRelationship(Neo4jRelationshipTypes.PEOPLE, Direction.OUTGOING).getEndNode();
-			for (Relationship person : personNodes.getRelationships(Neo4jRelationshipTypes.PERSON, Direction.OUTGOING))
-	        {
-				Node personNode = person.getEndNode();
-				map.put(personNode.getProperty("name").toString(), personNode.getId());
-	        }
+		    Qualifier peopleFilter = new VertexTypes(graphDB.getTypeId(People.class.getName()));
+            for (VertexHandle peopleNode : referenceNode.getNeighbors(peopleFilter))
+            {
+                Qualifier personFilter = new VertexTypes(graphDB.getTypeId(Person.class.getName()));
+                for (VertexHandle personNode : peopleNode.getVertex().getNeighbors(personFilter))
+                {
+                    map.put(((Person)personNode.getVertex()).getName(), personNode.getVertex().getId());
+                }
+		    }
 		}
 		return map;
 	}
