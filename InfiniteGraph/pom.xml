@@ -47,7 +47,7 @@
 						<argument>-Xrunjdwp:transport=dt_socket,address=9001,server=y,suspend=n</argument>
 			        	<argument>-classpath</argument>
 			        	<classpath></classpath>
-						<argument>com.infinitegraph.sample.HelloGraph</argument>
+						<argument>bench.igIngest</argument>
 						<!-- <commandlineArgs></commandlineArgs> -->
 			      	</arguments>
 				</configuration>
