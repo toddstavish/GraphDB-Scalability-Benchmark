@@ -93,8 +93,17 @@ public class igIngest
 		// Generate synthetic CSV data
 		//generateCsvData();
 
+		// Start timer
+		Stopwatch timer = new Stopwatch();
+		timer.start();
+
 		// Build graph
 		loadDataToGraph();
+
+		// Stop timer
+	    timer.stop();
+	    System.out.println("Ingested graph in: "+ timer.getElapsedTime() + " milliseconds.");
+		System.out.println("Graph size: " + " nodes.");
 	}
 
 	/**
@@ -112,7 +121,7 @@ public class igIngest
 
         // Name for graph database and property file
         String graphDbName = "igIngest";
-        String propertiesFileName = "igIngest.properties";
+        String propertiesFileName = "configuration.properties";
 
         try
         {
@@ -145,9 +154,13 @@ public class igIngest
             graphDB.nameVertex("root", root);
 			
     		// Create graph
+    		System.out.println("> Creating topic nodes ...");
             createTopicNodes(graphDB);
+            System.out.println("> Creating group nodes ...");
             createGroupNodes(graphDB);
+            System.out.println("> Creating people nodes ...");
             createPeopleNodes(graphDB);
+            System.out.println("> Creating document nodes ...");
             createDocumentNodes(graphDB);
         
     		// Commit to save your changes to the graph database

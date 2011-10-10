@@ -95,8 +95,17 @@ public class Neo4jIngest
 		// Generate synthetic CSV data
 		//generateCsvData();
 
+		// Start timer
+		Stopwatch timer = new Stopwatch();
+		timer.start();
+
 		// Build graph
 		loadDataToGraph();
+		
+		// Stop timer
+	    timer.stop();
+	    System.out.println("Ingested graph in: "+ timer.getElapsedTime() + " milliseconds.");
+		System.out.println("Graph size: " + " nodes.");
 	}
 
 	/**

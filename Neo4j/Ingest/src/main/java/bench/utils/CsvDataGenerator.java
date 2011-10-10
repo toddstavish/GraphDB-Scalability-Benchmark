@@ -136,7 +136,7 @@ public class CsvDataGenerator
 	
 	public static ArrayList<String> load(final String path, final int number) throws IOException
 	{
-		// Return a list of topics from the raw data file
+		// Return a list from a raw data file
 		String element;
 		ArrayList<String> array = new ArrayList<String>();
 		BufferedReader buffer = new BufferedReader(new FileReader(path));		
@@ -148,7 +148,7 @@ public class CsvDataGenerator
 			}
 			else
 			{
-				throw new IOException("Null value in topics file.");
+				throw new IOException("Null value in raw data file.");
 			}
 		}
 		buffer.close();	
